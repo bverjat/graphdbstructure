@@ -2,6 +2,7 @@
 var _ = require('lodash');
 var async = require('async');
 var fs = require('fs');
+var gexf = require('gexf');
 
 var dbLocal = require("seraph")({
   user: 'neo4j',
@@ -72,13 +73,110 @@ function getKeys(labels){
     function(err, results) {
        genDotGraph(results);
        saveJSON(results);
+       saveGefx(results);
     }
   );
+}
+
+function saveGefx(results){
+
+  var data = {nodes:[], edges:[]};
+  var myGexf = gexf.create({
+    model: {
+      node: [
+        {
+          id: "type",
+          type: "string",
+          title: "Node type"
+        }
+      ],
+      edge: [
+        {
+          id: "type",
+          type: "string",
+          title: "Edge type"
+        },
+        {
+          id: "predicate",
+          type: "string",
+          title: "predicate label"
+        },
+      ],
+    },
+
+  });
+
+    _.forEach(results, function(node, key) {
+
+    // create Node (unique label combination )
+    var newNode = {
+      id: 'n'+data.nodes.length,
+      label: key,
+      attributes: {type:'entity'}
+    }
+
+    data.nodes.push(newNode);
+    myGexf.addNode(newNode);
+
+    _.forEach(node.props, function(prop) {
+
+      // create Node Property keys
+      var newProp = {
+        id: 'n'+ data.nodes.length,
+        label: prop,
+        attributes: {type:'key'}
+      };
+
+      data.nodes.push(newProp);
+      myGexf.addNode(newProp);
+
+      // link Property keys to label
+
+      var newEdge = {
+        id: 'e'+data.edges.length,
+        type: "directed",
+        source: newNode.id,
+        target: newProp.id,
+        attributes: {
+          type:'key'
+        }
+      }
+
+      data.edges.push(newEdge);
+      myGexf.addEdge(newEdge);
+    });
+  });
+
+  _.forEach(results, function(node, key) {
+    _.forEach(node.relations, function(relation) {
+
+      sourceindex = getIndexIfObjWithAttr(data.nodes, "label", key);
+      targetindex = getIndexIfObjWithAttr(data.nodes, "label", _(relation.labels).toString());
+
+      var newEdge = {
+        id: 'e'+data.edges.length,
+        source: 'n'+sourceindex,
+        target: 'n'+targetindex,
+        attributes: {
+          predicate: relation.type,
+          type:'predicate'
+        }
+      }
+
+      data.edges.push(newEdge);
+      myGexf.addEdge(newEdge);
+    });
+  });
+
+
+  fs.writeFileSync("data/graph.gexf", myGexf.serialize());
+  console.log(data)
+  console.log("gfx saved!");
+
 }
 function saveJSON(results){
 
   var data = {nodes:[], edges:[]};
-  var n =0;
 
   fs.writeFileSync("data/raw_data.json", JSON.stringify(results));
   console.log("rawdata saved!");
@@ -89,16 +187,17 @@ function saveJSON(results){
     var newNode = {type:'entity', label:key, name:key, id:data.nodes.length}
     data.nodes.push(newNode);
 
-    // _.forEach(node.props, function(prop) {
+    _.forEach(node.props, function(prop) {
 
-    //   // create Node Property keys
-    //   var newProp = {type:'key', label:prop, name:prop, id:data.nodes.length};
-    //   data.nodes.push(newProp);
+      // create Node Property keys
+      var newProp = {type:'key', label:prop, name:prop, id:data.nodes.length};
+      data.nodes.push(newProp);
 
-    //   // link Property keys to label
-    //   data.edges.push({type:'key', source:newNode.id, target:newProp.id, label:''});
-    // });
+      // link Property keys to label
+      data.edges.push({type:'key', source:newNode.id, target:newProp.id, label:''});
+    });
   });
+
   _.forEach(results, function(node, key) {
     _.forEach(node.relations, function(relation) {
 
@@ -140,7 +239,7 @@ function genDotGraph(results){
 
   nodes = 'subgraph { node [shape=hexagon style=filled, fillcolor=black, color=white fontcolor=white]; edge [penwidth=100]; '+ nodes +'}';
   keys  = 'subgraph { node [shape=invhouse]; '+ keys +'}';
-  settings = ' ranksep=3; layout=dot; ';
+  settings = 'layout=fdp; ';
 
   graph = 'digraph  {'+ settings +' '+nodes+' '+keys+' '+keylinks+' '+ links +'}';
   fs.writeFileSync("data/graph.dot", graph);
