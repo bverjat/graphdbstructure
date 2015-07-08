@@ -1,43 +1,30 @@
+#!/usr/bin/env node
 
 var _ = require('lodash');
 var async = require('async');
 var fs = require('fs');
 var gexf = require('gexf');
+var argv = require('yargs').argv;
+
+var filename = typeof argv.output !== 'undefined' ?  argv.output : "data-model",
+    server   = typeof argv.server !== 'undefined' ?  argv.server : 'http://localhost:7474',
+    user     = typeof argv.user   !== 'undefined' ?  argv.server : 'neo4j',
+    pass     = typeof argv.pass   !== 'undefined' ?  argv.pass   : 'neo4j',
+    labels, tasks = {};
 
 var dbLocal = require("seraph")({
-  user: 'neo4j',
-  pass: 'neo'
+  server : server,
+  user  : user,
+  pass  : pass
 });
-
-var labels;
-var tasks = {};
 
 // query
-dbLocal.query("MATCH (m) WITH labels(m) AS l return DISTINCT l", function(err, result) {
-  if (err) throw err;
-  getKeys(result);
-});
-
-var getIndexIfObjWithAttr = function(array, attr, value) {
-  for(var i = 0; i < array.length; i++) {
-      if(array[i][attr] === value) {
-          return i;
-      }
-  }
-  return -1;
-}
-
-function labelsToQuery(labels){
-
-  var query="", sep="";
-
-  _.forEach(labels, function(label) {
-    query = query+sep+"m:"+label;
-    sep=" AND ";
+function getLabels(){
+  dbLocal.query("MATCH (m) WITH labels(m) AS l return DISTINCT l", function(err, result) {
+    if (err) throw err;
+    getKeys(result);
   });
-
-  return query;
-}
+};
 function getKeys(labels){
 
   _.forEach(labels, function(label) {
@@ -70,13 +57,35 @@ function getKeys(labels){
 
   async.parallel(tasks,
     function(err, results) {
-       genDotGraph(results);
-       saveJSON(results);
-       saveGefx(results);
+       if(argv.dot) saveDotGraph(results);
+       if(argv.json) saveJSON(results);
+       if(argv.gefx) saveGefx(results);
     }
   );
-}
+};
 
+// helpers
+function labelsToQuery(labels){
+
+  var query="", sep="";
+
+  _.forEach(labels, function(label) {
+    query = query+sep+"m:"+label;
+    sep=" AND ";
+  });
+
+  return query;
+};
+function getIndexIfObjWithAttr(array, attr, value) {
+  for(var i = 0; i < array.length; i++) {
+      if(array[i][attr] === value) {
+          return i;
+      }
+  }
+  return -1;
+};
+
+// exports
 function saveGefx(results){
 
   var data = {nodes:[], edges:[]};
@@ -169,16 +178,12 @@ function saveGefx(results){
     });
   });
 
-  fs.writeFileSync("data/graph.gexf", myGexf.serialize());
+  fs.writeFileSync("./"+filename+".gexf", myGexf.serialize());
   console.log("gfx saved!");
-
-}
+};
 function saveJSON(results){
 
   var data = {nodes:[], edges:[]};
-
-  fs.writeFileSync("data/raw_data.json", JSON.stringify(results));
-  console.log("rawdata saved!");
 
   _.forEach(results, function(node, key) {
 
@@ -208,11 +213,10 @@ function saveJSON(results){
     });
   });
 
-  fs.writeFileSync("data/data.json", JSON.stringify(data));
-  console.log("data saved!");
-}
-
-function genDotGraph(results){
+  fs.writeFileSync("./"+filename+".json", JSON.stringify(data));
+  console.log(filename+".json saved!");
+};
+function saveDotGraph(results){
   var graph, graphlight, nodes="", keys="", keylinks="", links="";
 
   // create keys
@@ -241,10 +245,23 @@ function genDotGraph(results){
   settings = 'layout=fdp; ';
 
   graph = 'digraph  {'+ settings +' '+nodes+' '+keys+' '+keylinks+' '+ links +'}';
-  fs.writeFileSync("data/graph.dot", graph);
-  console.log("graph saved!");
+  fs.writeFileSync("./"+filename+".dot", graph);
+  console.log(filename+".dot saved!");
 
   graphlight = 'digraph  { '+ settings +' '+nodes+' '+ links +'}';
-  fs.writeFileSync("data/graphlight.dot", graphlight);
-  console.log("graphlight saved!");
+  fs.writeFileSync("./"+filename+".dot", graphlight);
+  console.log(filename+"-light.dot saved!");
+};
+
+// start script
+
+if(argv.h || argv.help) {
+  console.log('Usage : ');
+  console.log('add --json for json output');
+  console.log('add --dot for dot/graphviz output');
+  console.log('add --gefx for gephi output \n');
+  console.log('ex: app.js --json --user neo4j --pass=neo4j --output filenameOutput \n');
+
+}else{
+  getLabels();
 }
