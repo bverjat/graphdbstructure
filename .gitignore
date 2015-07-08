@@ -2,3 +2,4 @@ node_modules
 *.json
 *.dot
 data/
+.DS_Store

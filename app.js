@@ -242,7 +242,7 @@ function saveDotGraph(results){
 
   nodes = 'subgraph { node [shape=hexagon style=filled, fillcolor=black, color=white fontcolor=white]; edge [penwidth=100]; '+ nodes +'}';
   keys  = 'subgraph { node [shape=invhouse]; '+ keys +'}';
-  settings = 'layout=fdp; ';
+  settings = 'layout=fdp; nodesep=10 ';
 
   graph = 'digraph  {'+ settings +' '+nodes+' '+keys+' '+keylinks+' '+ links +'}';
   fs.writeFileSync("./"+filename+".dot", graph);
@@ -253,8 +253,6 @@ function saveDotGraph(results){
   console.log(filename+"-light.dot saved!");
 };
 
-// start script
-
 if(argv.h || argv.help) {
   console.log('Usage : ');
   console.log('add --json for json output');
@@ -263,5 +261,6 @@ if(argv.h || argv.help) {
   console.log('ex: app.js --json --user neo4j --pass=neo4j --output filenameOutput \n');
 
 }else{
+  // starting render
   getLabels();
 }
