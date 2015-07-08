@@ -13,7 +13,6 @@ var labels;
 var tasks = {};
 
 // query
-
 dbLocal.query("MATCH (m) WITH labels(m) AS l return DISTINCT l", function(err, result) {
   if (err) throw err;
   getKeys(result);
@@ -130,8 +129,7 @@ function saveGefx(results){
       data.nodes.push(newProp);
       myGexf.addNode(newProp);
 
-      // link Property keys to label
-
+      // create edge between Property keys to label
       var newEdge = {
         id: 'e'+data.edges.length,
         type: "directed",
@@ -150,6 +148,7 @@ function saveGefx(results){
   _.forEach(results, function(node, key) {
     _.forEach(node.relations, function(relation) {
 
+      // find id for each nodes relations
       sourceindex = getIndexIfObjWithAttr(data.nodes, "label", key);
       targetindex = getIndexIfObjWithAttr(data.nodes, "label", _(relation.labels).toString());
 
@@ -163,14 +162,14 @@ function saveGefx(results){
         }
       }
 
+      // create edge between nodes
       data.edges.push(newEdge);
       myGexf.addEdge(newEdge);
+
     });
   });
 
-
   fs.writeFileSync("data/graph.gexf", myGexf.serialize());
-  console.log(data)
   console.log("gfx saved!");
 
 }
