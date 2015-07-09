@@ -18,14 +18,16 @@ var dbLocal = require("seraph")({
   pass  : pass
 });
 
-// query
-function getLabels(){
-  dbLocal.query("MATCH (m) WITH labels(m) AS l return DISTINCT l", function(err, result) {
+// Get nodes labels
+function getNodeLabels(){
+  dbLocal.query("MATCH (m) WITH labels(m) AS l return DISTINCT l", function(err, labels) {
     if (err) throw err;
-    getKeys(result);
+    getPropertykeys(labels);
   });
 };
-function getKeys(labels){
+
+// Property keys for a set of labels
+function getPropertykeys(labels){
 
   _.forEach(labels, function(label) {
 
@@ -34,6 +36,8 @@ function getKeys(labels){
         async.parallel(
           {
             props: function(next2) {
+              // find distinct Property keys combination
+
               dbLocal.query("MATCH m WHERE "+labelsToQuery(label)+" RETURN DISTINCT keys(m)", function(err, result) {
                 if (err) throw err;
                 return next2(null, _.union(_.flatten(result)));
@@ -253,14 +257,15 @@ function saveDotGraph(results){
   console.log(filename+"-light.dot saved!");
 };
 
+// main
+
 if(argv.h || argv.help) {
   console.log('Usage : ');
   console.log('add --json for json output');
   console.log('add --dot for dot/graphviz output');
   console.log('add --gefx for gephi output \n');
   console.log('ex: app.js --json --user neo4j --pass=neo4j --output filenameOutput \n');
-
 }else{
   // starting render
-  getLabels();
+  getNodeLabels();
 }
