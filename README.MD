@@ -3,6 +3,8 @@
 
 # -
 
+exports neo4j data model
+
 ## database login
 - `--user neo4j` 
 - `--pass neo4j`

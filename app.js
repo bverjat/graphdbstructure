@@ -61,7 +61,7 @@ function getPropertykeys(labels){
 
   async.parallel(tasks,
     function(err, results) {
-       if(argv.dot) saveDotGraph(results);
+       if(argv.dot) saveDot(results);
        if(argv.json) saveJSON(results);
        if(argv.gefx) saveGefx(results);
     }
@@ -94,6 +94,7 @@ function saveGefx(results){
 
   var data = {nodes:[], edges:[]};
   var myGexf = gexf.create({
+    defaultEdgeType: 'directed',
     model: {
       node: [
         {
@@ -145,7 +146,6 @@ function saveGefx(results){
       // create edge between Property keys to label
       var newEdge = {
         id: 'e'+data.edges.length,
-        type: "directed",
         source: newNode.id,
         target: newProp.id,
         attributes: {
@@ -220,7 +220,7 @@ function saveJSON(results){
   fs.writeFileSync("./"+filename+".json", JSON.stringify(data));
   console.log(filename+".json saved!");
 };
-function saveDotGraph(results){
+function saveDot(results){
   var graph, graphlight, nodes="", keys="", keylinks="", links="";
 
   // create keys
